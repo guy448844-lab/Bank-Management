@@ -1,0 +1,12 @@
+{
+  "name": "moneyflow",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Private, do-it-yourself personal money manager with an optional zero-dependency sync server",
+  "scripts": {
+    "start": "node server/server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

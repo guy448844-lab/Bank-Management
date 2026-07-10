@@ -1,0 +1,21 @@
+# One-click deployment blueprint for https://render.com
+#
+# In Render: New + → Blueprint → pick this repository → Apply.
+# It creates a small web service running the MoneyFlow sync server
+# with a persistent 1 GB disk mounted where user accounts and the
+# encrypted data live, so nothing is lost on restarts or redeploys.
+
+services:
+  - type: web
+    name: moneyflow
+    runtime: node
+    plan: starter          # persistent disks require a paid instance
+    region: frankfurt      # closest region to Israel; change if you like
+    buildCommand: "echo no build step needed"
+    startCommand: node server/server.js
+    healthCheckPath: /api/ping
+    autoDeploy: true       # every merge to main updates the app automatically
+    disk:
+      name: moneyflow-data
+      mountPath: /opt/render/project/src/server/data
+      sizeGB: 1
