@@ -91,6 +91,16 @@ node server/server.js
 
 That's the whole database: user accounts and each user's **encrypted** data are stored as files under `server/data/` (gitignored — never committed). Back up that folder and you've backed up everyone's data.
 
+### Or: let a cloud host run it for you (easiest, ~$7/month)
+
+If you'd rather not keep a computer running, [Render](https://render.com) can host the sync server straight from this repository — permanent HTTPS address, automatic redeploys on every update, nothing to maintain:
+
+1. Sign up at **render.com** (choose "Sign in with GitHub").
+2. Click **New + → Blueprint**, pick this repository, and hit **Apply** — the included `render.yaml` sets everything up, including a persistent disk for the encrypted user data.
+3. When it finishes, open your `https://moneyflow-….onrender.com` address, create your account, and add it to your phone's home screen.
+
+Cost: Render's Starter instance (~$7/mo) plus a tiny disk fee (~$0.25/mo). The free instance type won't do here — it wipes its disk on every restart, which would delete the accounts. Similar options: Railway (~$5/mo, add a volume mounted at `server/data`) or any small VPS.
+
 **Reaching it from outside your home (the restaurant test):** the easiest way is a free [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-tunnel/) — it gives your home computer a public HTTPS address with no router configuration:
 
 ```bash
