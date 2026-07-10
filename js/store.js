@@ -7,7 +7,7 @@
 const STORE_KEY = "moneyflow.v1";
 
 const DEFAULT_DATA = () => ({
-  settings: { currency: "₪" },
+  settings: { currency: "₪", bankId: "" },
   categories: {
     expense: ["Groceries", "Rent & Home", "Transport", "Eating Out", "Bills & Utilities",
               "Health", "Shopping", "Leisure", "Taxes", "Other"],
@@ -35,6 +35,7 @@ const Store = {
 
   save() {
     localStorage.setItem(STORE_KEY, JSON.stringify(this.data));
+    if (typeof Auth !== "undefined") Auth.scheduleSync();
   },
 
   uid() {
