@@ -25,44 +25,67 @@ const Charts = {
     return ctx;
   },
 
+  // drive frame(progress 0→1) with ease-out; cancels any prior run on the canvas
+  animateDraw(canvas, duration, animate, frame) {
+    if (canvas._anim) cancelAnimationFrame(canvas._anim);
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!animate || reduced) { frame(1); return; }
+    const start = performance.now();
+    const step = now => {
+      const t = Math.min(1, (now - start) / duration);
+      frame(1 - Math.pow(1 - t, 3));
+      if (t < 1) canvas._anim = requestAnimationFrame(step);
+    };
+    canvas._anim = requestAnimationFrame(step);
+  },
+
   /* ---------------- donut ---------------- */
   // slices: [{label, value, color}] — already sorted, ≤8 (rest folded to "Other")
-  drawDonut(canvas, slices, centerLabel, centerValue) {
+  drawDonut(canvas, slices, centerLabel, centerValue, animate = true) {
     const size = 220;
     const ctx = this.setupCanvas(canvas, size, size);
     const cx = size / 2, cy = size / 2;
     const rOuter = 92, rInner = 62;
     const total = slices.reduce((s, d) => s + d.value, 0);
     const surface = this.cssVar("--surface-1");
+    const startA = -Math.PI / 2;
 
-    ctx.clearRect(0, 0, size, size);
-    let angle = -Math.PI / 2;
+    // final segment geometry (hover hit-testing always uses this)
+    let angle = startA;
     const hitArcs = [];
-
     for (const s of slices) {
       const sweep = total > 0 ? (s.value / total) * Math.PI * 2 : 0;
-      ctx.beginPath();
-      ctx.arc(cx, cy, rOuter, angle, angle + sweep);
-      ctx.arc(cx, cy, rInner, angle + sweep, angle, true);
-      ctx.closePath();
-      ctx.fillStyle = s.color;
-      ctx.fill();
-      // 2px surface spacer between segments
-      ctx.strokeStyle = surface;
-      ctx.lineWidth = 2;
-      ctx.stroke();
       hitArcs.push({ from: angle, to: angle + sweep, slice: s });
       angle += sweep;
     }
 
-    // center text — ink tokens, never series color
-    ctx.textAlign = "center";
-    ctx.fillStyle = this.cssVar("--text-muted");
-    ctx.font = "12px system-ui, -apple-system, 'Segoe UI', sans-serif";
-    ctx.fillText(centerLabel, cx, cy - 8);
-    ctx.fillStyle = this.cssVar("--text-primary");
-    ctx.font = "650 17px system-ui, -apple-system, 'Segoe UI', sans-serif";
-    ctx.fillText(centerValue, cx, cy + 12);
+    const render = p => {
+      ctx.clearRect(0, 0, size, size);
+      const limit = startA + p * Math.PI * 2; // clockwise wipe
+      for (const h of hitArcs) {
+        const to = Math.min(h.to, limit);
+        if (to <= h.from) continue;
+        ctx.beginPath();
+        ctx.arc(cx, cy, rOuter, h.from, to);
+        ctx.arc(cx, cy, rInner, to, h.from, true);
+        ctx.closePath();
+        ctx.fillStyle = h.slice.color;
+        ctx.fill();
+        // 2px surface spacer between segments
+        ctx.strokeStyle = surface;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+      // center text — ink tokens, never series color
+      ctx.textAlign = "center";
+      ctx.fillStyle = this.cssVar("--text-muted");
+      ctx.font = "12px system-ui, -apple-system, 'Segoe UI', sans-serif";
+      ctx.fillText(centerLabel, cx, cy - 8);
+      ctx.fillStyle = this.cssVar("--text-primary");
+      ctx.font = "650 17px system-ui, -apple-system, 'Segoe UI', sans-serif";
+      ctx.fillText(centerValue, cx, cy + 12);
+    };
+    this.animateDraw(canvas, 550, animate, render);
 
     canvas.onmousemove = e => {
       const rect = canvas.getBoundingClientRect();
@@ -88,7 +111,7 @@ const Charts = {
 
   /* ---------------- grouped bars ---------------- */
   // months: [{label, income, expense}]
-  drawFlow(canvas, months) {
+  drawFlow(canvas, months, animate = true) {
     const cssWidth = canvas.parentElement.clientWidth || 320;
     const cssHeight = 180;
     const ctx = this.setupCanvas(canvas, cssWidth, cssHeight);
@@ -109,48 +132,55 @@ const Charts = {
     const expenseC = this.cssVar("--series-expense");
     const hitRects = [];
 
-    ctx.clearRect(0, 0, cssWidth, cssHeight);
-
-    // hairline baseline
-    ctx.strokeStyle = this.cssVar("--baseline");
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(padL, baseY + 0.5);
-    ctx.lineTo(cssWidth - padR, baseY + 0.5);
-    ctx.stroke();
-
-    ctx.textAlign = "center";
+    // final geometry for hover hit-testing
     months.forEach((m, i) => {
       const cxg = padL + groupW * i + groupW / 2;
-      const xi = cxg - barW - gap / 2;
-      const xe = cxg + gap / 2;
-
-      const drawBar = (x, val, color, name) => {
+      const put = (x, val, name, color) => {
         const h = Math.max(val > 0 ? 2 : 0, scale(val));
-        if (h > 0) {
-          roundedTopRect(ctx, x, baseY - h, barW, h, 4);
-          ctx.fillStyle = color;
-          ctx.fill();
-        }
-        hitRects.push({ x, y: baseY - Math.max(h, 14), w: barW, h: Math.max(h, 14), month: m, name, val, color });
+        hitRects.push({ x, y: baseY - Math.max(h, 14), w: barW, h: Math.max(h, 14), month: m, name, val, color, barH: h });
       };
-      drawBar(xi, m.income, incomeC, "Income");
-      drawBar(xe, m.expense, expenseC, "Expenses");
-
-      ctx.fillStyle = this.cssVar("--text-muted");
-      ctx.font = "11px system-ui, -apple-system, 'Segoe UI', sans-serif";
-      ctx.fillText(m.label, cxg, cssHeight - 6);
+      put(cxg - barW - gap / 2, m.income, "Income", incomeC);
+      put(cxg + gap / 2, m.expense, "Expenses", expenseC);
     });
 
-    // direct label on the latest month only (selective labeling)
-    const last = months[months.length - 1];
-    if (last && (last.income > 0 || last.expense > 0)) {
-      const cxg = padL + groupW * (months.length - 1) + groupW / 2;
-      ctx.fillStyle = this.cssVar("--text-secondary");
-      ctx.font = "600 11px system-ui, -apple-system, 'Segoe UI', sans-serif";
-      const topVal = Math.max(last.income, last.expense);
-      ctx.fillText(App.fmtMoneyShort(topVal), cxg, baseY - scale(topVal) - 5);
-    }
+    const render = p => {
+      ctx.clearRect(0, 0, cssWidth, cssHeight);
+
+      // hairline baseline
+      ctx.strokeStyle = this.cssVar("--baseline");
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(padL, baseY + 0.5);
+      ctx.lineTo(cssWidth - padR, baseY + 0.5);
+      ctx.stroke();
+
+      // bars grow up from the baseline
+      for (const r of hitRects) {
+        const h = r.barH * p;
+        if (h <= 0) continue;
+        roundedTopRect(ctx, r.x, baseY - h, barW, h, 4);
+        ctx.fillStyle = r.color;
+        ctx.fill();
+      }
+
+      ctx.textAlign = "center";
+      ctx.fillStyle = this.cssVar("--text-muted");
+      ctx.font = "11px system-ui, -apple-system, 'Segoe UI', sans-serif";
+      months.forEach((m, i) => {
+        ctx.fillText(m.label, padL + groupW * i + groupW / 2, cssHeight - 6);
+      });
+
+      // direct label on the latest month only (selective labeling)
+      const last = months[months.length - 1];
+      if (p === 1 && last && (last.income > 0 || last.expense > 0)) {
+        const cxg = padL + groupW * (months.length - 1) + groupW / 2;
+        ctx.fillStyle = this.cssVar("--text-secondary");
+        ctx.font = "600 11px system-ui, -apple-system, 'Segoe UI', sans-serif";
+        const topVal = Math.max(last.income, last.expense);
+        ctx.fillText(App.fmtMoneyShort(topVal), cxg, baseY - scale(topVal) - 5);
+      }
+    };
+    this.animateDraw(canvas, 550, animate, render);
 
     canvas.onmousemove = e => {
       const rect = canvas.getBoundingClientRect();
