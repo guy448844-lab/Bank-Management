@@ -35,7 +35,6 @@ const Store = {
 
   save() {
     localStorage.setItem(STORE_KEY, JSON.stringify(this.data));
-    if (typeof Auth !== "undefined") Auth.scheduleSync();
   },
 
   uid() {
