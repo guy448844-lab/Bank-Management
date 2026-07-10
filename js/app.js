@@ -11,10 +11,7 @@ const App = {
   editingFundId: null,
   fundEntrySign: 1,
 
-  inited: false,
   init() {
-    if (this.inited) return;
-    this.inited = true;
     Store.load();
     const now = new Date();
     this.month = { y: now.getFullYear(), m: now.getMonth() };
@@ -745,43 +742,6 @@ const App = {
     document.getElementById("set-currency").value = this.currency();
     document.getElementById("set-bankid").value = Store.data.settings.bankId || "";
 
-    /* account card */
-    const acc = document.getElementById("account-body");
-    if (typeof Auth !== "undefined" && Auth.user) {
-      acc.innerHTML = `
-        <div class="account-row">
-          <div class="who">
-            <b>${escapeHtml(Auth.user)}</b>
-            <span>Signed in — changes sync to your server and follow you across devices.</span>
-          </div>
-          <button class="btn small" id="logout-btn">Sign out</button>
-        </div>`;
-      acc.querySelector("#logout-btn").addEventListener("click", () => {
-        if (confirm("Sign out? Your data stays safe on the server; this device's copy is cleared.")) Auth.logout();
-      });
-    } else if (typeof Auth !== "undefined" && Auth.serverMode) {
-      acc.innerHTML = `
-        <div class="account-row">
-          <div class="who">
-            <b>Device-only mode</b>
-            <span>Data lives only in this browser. Sign in to sync it across devices.</span>
-          </div>
-          <button class="btn small primary" id="signin-btn">Sign in</button>
-        </div>`;
-      acc.querySelector("#signin-btn").addEventListener("click", () => {
-        localStorage.removeItem("moneyflow.localmode");
-        location.reload();
-      });
-    } else {
-      acc.innerHTML = `
-        <div class="account-row">
-          <div class="who">
-            <b>Device-only mode</b>
-            <span>This copy of the app has no sync server, so data lives only in this browser (use Export/Import below to move it). To get accounts and cross-device sync, run the MoneyFlow server — see the README on GitHub.</span>
-          </div>
-        </div>`;
-    }
-
     /* recurring list */
     const recs = Store.data.recurring.filter(r => r.active);
     document.getElementById("recurring-empty").classList.toggle("hidden", recs.length > 0);
@@ -857,5 +817,4 @@ function ord(n) {
   return s[(v - 20) % 10] || s[v] || s[0];
 }
 
-// App.init() is called by Auth.boot() (js/auth.js) once the
-// account/sync mode has been resolved.
+document.addEventListener("DOMContentLoaded", () => App.init());

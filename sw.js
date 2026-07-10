@@ -1,14 +1,13 @@
 /* MoneyFlow service worker — cache-first so the app opens instantly
    and works offline. Bump CACHE_VERSION when shipping changes. */
 
-const CACHE_VERSION = "moneyflow-v3";
+const CACHE_VERSION = "moneyflow-v4";
 const ASSETS = [
   ".",
   "index.html",
   "css/style.css",
   "js/store.js",
   "js/charts.js",
-  "js/auth.js",
   "js/app.js",
   "manifest.webmanifest",
   "icons/icon.svg",
@@ -31,8 +30,6 @@ self.addEventListener("activate", e => {
 
 self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
-  // account & sync API must always hit the network, never the cache
-  if (new URL(e.request.url).pathname.includes("/api/")) return;
   e.respondWith(
     caches.match(e.request, { ignoreSearch: true }).then(cached => {
       const network = fetch(e.request).then(res => {

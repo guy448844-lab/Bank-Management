@@ -1,5 +1,2 @@
-# user accounts, sessions and encrypted data — never commit these
-server/data/
-
 node_modules/
 .DS_Store
