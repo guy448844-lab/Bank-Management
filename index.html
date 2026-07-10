@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1a1a19" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f9f9f7" media="(prefers-color-scheme: light)">
+<meta name="description" content="MoneyFlow — a private, do-it-yourself personal money manager. Track income, expenses, budgets and savings funds. All data stays on your device.">
+<title>MoneyFlow · Personal Money Manager</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+        <circle cx="12" cy="12" r="11" fill="var(--accent)"/>
+        <path d="M6.5 14.5 L10 9.5 L13 12.5 L17.5 7.5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="17.5" cy="7.5" r="1.6" fill="#fff"/>
+      </svg>
+      <span class="brand-name">MoneyFlow</span>
+    </div>
+    <div class="month-nav" id="month-nav">
+      <button class="icon-btn" id="month-prev" aria-label="Previous month">‹</button>
+      <button class="month-label" id="month-label" title="Jump to current month"></button>
+      <button class="icon-btn" id="month-next" aria-label="Next month">›</button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+  <!-- ===================== DASHBOARD ===================== -->
+  <section class="view" id="view-dashboard">
+    <div class="hero card" id="hero-card">
+      <div class="hero-label" id="hero-label">Left to spend this month</div>
+      <div class="hero-value" id="hero-value">—</div>
+      <div class="hero-sub" id="hero-sub"></div>
+    </div>
+
+    <div class="tile-row">
+      <div class="tile card">
+        <div class="tile-label">Income</div>
+        <div class="tile-value income" id="tile-income">—</div>
+      </div>
+      <div class="tile card">
+        <div class="tile-label">Expenses</div>
+        <div class="tile-value expense" id="tile-expenses">—</div>
+      </div>
+      <div class="tile card">
+        <div class="tile-label">Net</div>
+        <div class="tile-value" id="tile-net">—</div>
+      </div>
+    </div>
+
+    <div class="card chart-card">
+      <div class="card-head">
+        <h2>Spending by category</h2>
+        <span class="card-head-note" id="donut-total"></span>
+      </div>
+      <div class="donut-wrap">
+        <canvas id="donut-chart" width="220" height="220" role="img" aria-label="Donut chart of spending by category"></canvas>
+        <ul class="legend" id="donut-legend"></ul>
+      </div>
+      <p class="empty-note hidden" id="donut-empty">No expenses recorded this month yet.</p>
+    </div>
+
+    <div class="card chart-card">
+      <div class="card-head">
+        <h2>Cash flow · last 6 months</h2>
+      </div>
+      <div class="flow-legend legend-row">
+        <span class="legend-item"><i class="swatch" style="background:var(--series-income)"></i>Income</span>
+        <span class="legend-item"><i class="swatch" style="background:var(--series-expense)"></i>Expenses</span>
+      </div>
+      <div class="bars-wrap">
+        <canvas id="flow-chart" height="180" role="img" aria-label="Bar chart of monthly income and expenses for the last six months"></canvas>
+      </div>
+    </div>
+
+    <div class="card" id="insights-card">
+      <div class="card-head"><h2>Insights</h2></div>
+      <ul class="insights" id="insights-list"></ul>
+    </div>
+
+    <div class="card" id="upcoming-card">
+      <div class="card-head"><h2>Upcoming fixed payments</h2></div>
+      <ul class="mini-list" id="upcoming-list"></ul>
+      <p class="empty-note hidden" id="upcoming-empty">No recurring payments left this month.</p>
+    </div>
+  </section>
+
+  <!-- ===================== TRANSACTIONS ===================== -->
+  <section class="view hidden" id="view-transactions">
+    <div class="toolbar">
+      <input type="search" id="tx-search" placeholder="Search notes or categories…" aria-label="Search transactions">
+      <select id="tx-filter-type" aria-label="Filter by type">
+        <option value="">All types</option>
+        <option value="income">Income</option>
+        <option value="expense">Expenses</option>
+      </select>
+    </div>
+    <div id="tx-list"></div>
+    <p class="empty-note hidden" id="tx-empty">No transactions this month. Tap “+” to add your first one.</p>
+  </section>
+
+  <!-- ===================== BUDGETS ===================== -->
+  <section class="view hidden" id="view-budgets">
+    <div class="card">
+      <div class="card-head">
+        <h2>Monthly budgets</h2>
+        <button class="btn small" id="budget-edit-btn">Edit</button>
+      </div>
+      <div id="budget-list"></div>
+      <p class="empty-note hidden" id="budget-empty">No budgets set. Tap “Edit” to give each category a monthly limit.</p>
+    </div>
+  </section>
+
+  <!-- ===================== FUNDS ===================== -->
+  <section class="view hidden" id="view-funds">
+    <div class="card">
+      <div class="card-head">
+        <h2>Savings &amp; trust funds</h2>
+        <button class="btn small" id="fund-add-btn">New fund</button>
+      </div>
+      <div id="fund-list"></div>
+      <p class="empty-note hidden" id="fund-empty">No funds yet. Create one to start saving toward a goal — an emergency cushion, a trip, a trust fund for the kids.</p>
+    </div>
+  </section>
+
+  <!-- ===================== SETTINGS ===================== -->
+  <section class="view hidden" id="view-settings">
+    <div class="card">
+      <div class="card-head"><h2>Preferences</h2></div>
+      <label class="field">
+        <span>Currency symbol</span>
+        <select id="set-currency">
+          <option value="₪">₪ Shekel</option>
+          <option value="$">$ Dollar</option>
+          <option value="€">€ Euro</option>
+          <option value="£">£ Pound</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Recurring transactions</h2></div>
+      <p class="hint">Fixed monthly payments and incomes (rent, salary, subscriptions). They are added automatically on their day each month.</p>
+      <ul class="mini-list" id="recurring-list"></ul>
+      <p class="empty-note hidden" id="recurring-empty">None yet — when adding a transaction, turn on “repeats monthly”.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Categories</h2></div>
+      <div class="field-row">
+        <input type="text" id="cat-new-name" placeholder="New category name" aria-label="New category name">
+        <select id="cat-new-type" aria-label="Category type">
+          <option value="expense">Expense</option>
+          <option value="income">Income</option>
+        </select>
+        <button class="btn small" id="cat-add-btn">Add</button>
+      </div>
+      <div class="chips" id="cat-list"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Your data</h2></div>
+      <p class="hint">Everything is stored only in this browser — nothing is ever sent anywhere. Export a backup regularly, and import it to move to a new phone or computer.</p>
+      <div class="btn-row">
+        <button class="btn" id="export-btn">Export backup</button>
+        <button class="btn" id="import-btn">Import backup</button>
+        <input type="file" id="import-file" accept="application/json" hidden>
+      </div>
+      <div class="btn-row">
+        <button class="btn subtle" id="demo-btn">Load demo data</button>
+        <button class="btn danger" id="wipe-btn">Erase everything</button>
+      </div>
+    </div>
+
+    <p class="footnote">MoneyFlow is a do-it-yourself money manager. It never connects to a bank or card — every entry is yours, typed by hand, kept on your device.</p>
+  </section>
+</main>
+
+<!-- Bottom navigation -->
+<nav class="bottombar" aria-label="Main">
+  <button class="nav-btn active" data-view="dashboard" aria-label="Dashboard">
+    <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+    <span>Home</span>
+  </button>
+  <button class="nav-btn" data-view="transactions" aria-label="Transactions">
+    <svg viewBox="0 0 24 24"><path d="M3 6h13l-2.5-2.5L15 2l5 5-5 5-1.5-1.5L16 8H3V6zm18 12H8l2.5 2.5L9 22l-5-5 5-5 1.5 1.5L8 16h13v2z"/></svg>
+    <span>Activity</span>
+  </button>
+  <button class="nav-add" id="tx-add-btn" aria-label="Add transaction">+</button>
+  <button class="nav-btn" data-view="budgets" aria-label="Budgets">
+    <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10h-10V2z"/><path d="M14 0v8h8a8 8 0 0 0-8-8z" opacity=".55"/></svg>
+    <span>Budgets</span>
+  </button>
+  <button class="nav-btn" data-view="funds" aria-label="Funds">
+    <svg viewBox="0 0 24 24"><path d="M5 4h14a2 2 0 0 1 2 2v2H3V6a2 2 0 0 1 2-2zm-2 6h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-8zm4 5v2h5v-2H7z"/></svg>
+    <span>Funds</span>
+  </button>
+  <button class="nav-btn" data-view="settings" aria-label="Settings">
+    <svg viewBox="0 0 24 24"><path d="M19.4 13a7.6 7.6 0 0 0 .1-1 7.6 7.6 0 0 0-.1-1l2.1-1.7a.5.5 0 0 0 .1-.6l-2-3.5a.5.5 0 0 0-.6-.2l-2.5 1a7.7 7.7 0 0 0-1.7-1l-.4-2.6a.5.5 0 0 0-.5-.4h-4a.5.5 0 0 0-.5.4L9 5a7.7 7.7 0 0 0-1.7 1l-2.5-1a.5.5 0 0 0-.6.2l-2 3.5a.5.5 0 0 0 .1.6L4.5 11a7.6 7.6 0 0 0 0 2l-2.1 1.7a.5.5 0 0 0-.1.6l2 3.5c.1.2.4.3.6.2l2.5-1a7.7 7.7 0 0 0 1.7 1l.4 2.6c0 .2.2.4.5.4h4c.2 0 .4-.2.5-.4l.4-2.6a7.7 7.7 0 0 0 1.7-1l2.5 1c.2.1.5 0 .6-.2l2-3.5a.5.5 0 0 0-.1-.6L19.4 13zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg>
+    <span>Settings</span>
+  </button>
+</nav>
+
+<!-- ===================== TRANSACTION MODAL ===================== -->
+<div class="modal-backdrop hidden" id="tx-modal">
+  <form class="modal" id="tx-form">
+    <div class="modal-head">
+      <h2 id="tx-modal-title">Add transaction</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close">✕</button>
+    </div>
+    <div class="seg" role="radiogroup" aria-label="Type">
+      <label><input type="radio" name="tx-type" value="expense" checked><span>Expense</span></label>
+      <label><input type="radio" name="tx-type" value="income"><span>Income</span></label>
+    </div>
+    <label class="field">
+      <span>Amount</span>
+      <input type="number" id="tx-amount" min="0.01" step="0.01" inputmode="decimal" placeholder="0.00" required>
+    </label>
+    <label class="field">
+      <span>Category</span>
+      <select id="tx-category" required></select>
+    </label>
+    <label class="field">
+      <span>Date</span>
+      <input type="date" id="tx-date" required>
+    </label>
+    <label class="field">
+      <span>Note <em>(optional)</em></span>
+      <input type="text" id="tx-note" maxlength="80" placeholder="e.g. dinner with friends">
+    </label>
+    <label class="switch-field">
+      <input type="checkbox" id="tx-recurring">
+      <span>Repeats monthly (fixed payment / salary)</span>
+    </label>
+    <div class="btn-row">
+      <button type="button" class="btn danger hidden" id="tx-delete-btn">Delete</button>
+      <span class="spacer"></span>
+      <button type="submit" class="btn primary" id="tx-save-btn">Save</button>
+    </div>
+  </form>
+</div>
+
+<!-- ===================== BUDGET MODAL ===================== -->
+<div class="modal-backdrop hidden" id="budget-modal">
+  <form class="modal" id="budget-form">
+    <div class="modal-head">
+      <h2>Monthly budgets</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close">✕</button>
+    </div>
+    <p class="hint">Set a monthly limit per expense category. Leave empty for no budget.</p>
+    <div id="budget-form-fields"></div>
+    <div class="btn-row">
+      <span class="spacer"></span>
+      <button type="submit" class="btn primary">Save</button>
+    </div>
+  </form>
+</div>
+
+<!-- ===================== FUND MODAL ===================== -->
+<div class="modal-backdrop hidden" id="fund-modal">
+  <form class="modal" id="fund-form">
+    <div class="modal-head">
+      <h2 id="fund-modal-title">New fund</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close">✕</button>
+    </div>
+    <label class="field">
+      <span>Name</span>
+      <input type="text" id="fund-name" maxlength="40" placeholder="e.g. Emergency fund, Kids' trust" required>
+    </label>
+    <label class="field">
+      <span>Goal amount <em>(optional)</em></span>
+      <input type="number" id="fund-goal" min="0" step="0.01" inputmode="decimal" placeholder="e.g. 20000">
+    </label>
+    <div class="btn-row">
+      <button type="button" class="btn danger hidden" id="fund-delete-btn">Delete fund</button>
+      <span class="spacer"></span>
+      <button type="submit" class="btn primary">Save</button>
+    </div>
+  </form>
+</div>
+
+<!-- ===================== FUND ENTRY MODAL ===================== -->
+<div class="modal-backdrop hidden" id="fund-entry-modal">
+  <form class="modal" id="fund-entry-form">
+    <div class="modal-head">
+      <h2 id="fund-entry-title">Deposit</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close">✕</button>
+    </div>
+    <label class="field">
+      <span>Amount</span>
+      <input type="number" id="fund-entry-amount" min="0.01" step="0.01" inputmode="decimal" required>
+    </label>
+    <label class="field">
+      <span>Note <em>(optional)</em></span>
+      <input type="text" id="fund-entry-note" maxlength="80">
+    </label>
+    <div class="btn-row">
+      <span class="spacer"></span>
+      <button type="submit" class="btn primary">Save</button>
+    </div>
+  </form>
+</div>
+
+<div class="chart-tooltip hidden" id="chart-tooltip" role="status"></div>
+<div class="toast hidden" id="toast" role="status"></div>
+
+<script src="js/store.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
