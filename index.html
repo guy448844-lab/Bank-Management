@@ -23,11 +23,17 @@
         <circle cx="17.5" cy="7.5" r="1.6" fill="#fff"/>
       </svg>
       <span class="brand-name">MoneyFlow</span>
+      <span class="bank-chip hidden" id="bank-chip" title="Bank identifier">🏦 <span id="bank-chip-name"></span></span>
     </div>
-    <div class="month-nav" id="month-nav">
-      <button class="icon-btn" id="month-prev" aria-label="Previous month">‹</button>
-      <button class="month-label" id="month-label" title="Jump to current month"></button>
-      <button class="icon-btn" id="month-next" aria-label="Next month">›</button>
+    <div class="topbar-right">
+      <div class="month-nav" id="month-nav">
+        <button class="icon-btn" id="month-prev" aria-label="Previous month">‹</button>
+        <button class="month-label" id="month-label" title="Jump to current month"></button>
+        <button class="icon-btn" id="month-next" aria-label="Next month">›</button>
+      </div>
+      <button class="icon-btn gear" id="settings-btn" aria-label="Settings">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19.4 13a7.6 7.6 0 0 0 .1-1 7.6 7.6 0 0 0-.1-1l2.1-1.7a.5.5 0 0 0 .1-.6l-2-3.5a.5.5 0 0 0-.6-.2l-2.5 1a7.7 7.7 0 0 0-1.7-1l-.4-2.6a.5.5 0 0 0-.5-.4h-4a.5.5 0 0 0-.5.4L9 5a7.7 7.7 0 0 0-1.7 1l-2.5-1a.5.5 0 0 0-.6.2l-2 3.5a.5.5 0 0 0 .1.6L4.5 11a7.6 7.6 0 0 0 0 2l-2.1 1.7a.5.5 0 0 0-.1.6l2 3.5c.1.2.4.3.6.2l2.5-1a7.7 7.7 0 0 0 1.7 1l.4 2.6c0 .2.2.4.5.4h4c.2 0 .4-.2.5-.4l.4-2.6a7.7 7.7 0 0 0 1.7-1l2.5 1c.2.1.5 0 .6-.2l2-3.5a.5.5 0 0 0-.1-.6L19.4 13zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg>
+      </button>
     </div>
   </div>
 </header>
@@ -133,6 +139,11 @@
 
   <!-- ===================== SETTINGS ===================== -->
   <section class="view hidden" id="view-settings">
+    <div class="card" id="account-card">
+      <div class="card-head"><h2>Account</h2></div>
+      <div id="account-body"></div>
+    </div>
+
     <div class="card">
       <div class="card-head"><h2>Preferences</h2></div>
       <label class="field">
@@ -143,6 +154,10 @@
           <option value="€">€ Euro</option>
           <option value="£">£ Pound</option>
         </select>
+      </label>
+      <label class="field">
+        <span>Bank identifier <em>(a label shown in the top bar — not real bank details)</em></span>
+        <input type="text" id="set-bankid" maxlength="30" placeholder="e.g. Main account">
       </label>
     </div>
 
@@ -202,10 +217,6 @@
   <button class="nav-btn" data-view="funds" aria-label="Funds">
     <svg viewBox="0 0 24 24"><path d="M5 4h14a2 2 0 0 1 2 2v2H3V6a2 2 0 0 1 2-2zm-2 6h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-8zm4 5v2h5v-2H7z"/></svg>
     <span>Funds</span>
-  </button>
-  <button class="nav-btn" data-view="settings" aria-label="Settings">
-    <svg viewBox="0 0 24 24"><path d="M19.4 13a7.6 7.6 0 0 0 .1-1 7.6 7.6 0 0 0-.1-1l2.1-1.7a.5.5 0 0 0 .1-.6l-2-3.5a.5.5 0 0 0-.6-.2l-2.5 1a7.7 7.7 0 0 0-1.7-1l-.4-2.6a.5.5 0 0 0-.5-.4h-4a.5.5 0 0 0-.5.4L9 5a7.7 7.7 0 0 0-1.7 1l-2.5-1a.5.5 0 0 0-.6.2l-2 3.5a.5.5 0 0 0 .1.6L4.5 11a7.6 7.6 0 0 0 0 2l-2.1 1.7a.5.5 0 0 0-.1.6l2 3.5c.1.2.4.3.6.2l2.5-1a7.7 7.7 0 0 0 1.7 1l.4 2.6c0 .2.2.4.5.4h4c.2 0 .4-.2.5-.4l.4-2.6a7.7 7.7 0 0 0 1.7-1l2.5 1c.2.1.5 0 .6-.2l2-3.5a.5.5 0 0 0-.1-.6L19.4 13zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg>
-    <span>Settings</span>
   </button>
 </nav>
 
@@ -309,11 +320,49 @@
   </form>
 </div>
 
+<!-- ===================== SIGN IN / REGISTER ===================== -->
+<div class="auth-screen hidden" id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <svg viewBox="0 0 24 24" width="44" height="44" aria-hidden="true">
+        <circle cx="12" cy="12" r="11" fill="var(--accent)"/>
+        <path d="M6.5 14.5 L10 9.5 L13 12.5 L17.5 7.5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="17.5" cy="7.5" r="1.6" fill="#fff"/>
+      </svg>
+      <h1>MoneyFlow</h1>
+      <p>Your money, your rules — synced to your own server.</p>
+    </div>
+    <div class="auth-tabs">
+      <button type="button" id="auth-tab-signin" class="active">Sign in</button>
+      <button type="button" id="auth-tab-register">Create account</button>
+    </div>
+    <form id="auth-form">
+      <label class="field">
+        <span>Username</span>
+        <input type="text" id="auth-username" autocomplete="username" maxlength="16" required>
+      </label>
+      <label class="field">
+        <span>Password</span>
+        <input type="password" id="auth-password" autocomplete="current-password" maxlength="32" required>
+      </label>
+      <label class="field hidden" id="auth-bank-field">
+        <span>Bank identifier <em>(just a label, e.g. “Main account” — never real bank details)</em></span>
+        <input type="text" id="auth-bankid" maxlength="30" placeholder="Main account">
+      </label>
+      <p class="auth-error hidden" id="auth-error"></p>
+      <p class="hint" id="auth-hint"></p>
+      <button type="submit" class="btn primary auth-submit" id="auth-submit">Sign in</button>
+    </form>
+    <button type="button" class="auth-local" id="auth-local-btn">Use on this device only (no account)</button>
+  </div>
+</div>
+
 <div class="chart-tooltip hidden" id="chart-tooltip" role="status"></div>
 <div class="toast hidden" id="toast" role="status"></div>
 
 <script src="js/store.js"></script>
 <script src="js/charts.js"></script>
+<script src="js/auth.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

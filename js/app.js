@@ -11,10 +11,14 @@ const App = {
   editingFundId: null,
   fundEntrySign: 1,
 
+  inited: false,
   init() {
+    if (this.inited) return;
+    this.inited = true;
     Store.load();
     const now = new Date();
     this.month = { y: now.getFullYear(), m: now.getMonth() };
+    this.updateChip();
     this.bindNav();
     this.bindMonthNav();
     this.bindTxModal();
@@ -71,6 +75,13 @@ const App = {
     document.querySelectorAll(".nav-btn").forEach(btn => {
       btn.addEventListener("click", () => this.showView(btn.dataset.view));
     });
+    document.getElementById("settings-btn").addEventListener("click", () => this.showView("settings"));
+  },
+
+  updateChip() {
+    const bankId = (Store.data.settings.bankId || "").trim();
+    document.getElementById("bank-chip").classList.toggle("hidden", !bankId);
+    document.getElementById("bank-chip-name").textContent = bankId;
   },
 
   showView(name) {
@@ -88,6 +99,7 @@ const App = {
     }
     document.querySelectorAll(".nav-btn").forEach(b =>
       b.classList.toggle("active", b.dataset.view === name));
+    document.getElementById("settings-btn").classList.toggle("active", name === "settings");
     // month navigation only affects dashboard + transactions
     document.getElementById("month-nav").style.visibility =
       (name === "dashboard" || name === "transactions" || name === "budgets") ? "visible" : "hidden";
@@ -666,6 +678,13 @@ const App = {
       this.renderAll();
     });
 
+    document.getElementById("set-bankid").addEventListener("change", e => {
+      Store.data.settings.bankId = e.target.value.trim().slice(0, 30);
+      Store.save();
+      this.updateChip();
+      this.toast("Bank identifier updated");
+    });
+
     document.getElementById("cat-add-btn").addEventListener("click", () => {
       const name = document.getElementById("cat-new-name").value.trim();
       const type = document.getElementById("cat-new-type").value;
@@ -724,6 +743,44 @@ const App = {
 
   renderSettings() {
     document.getElementById("set-currency").value = this.currency();
+    document.getElementById("set-bankid").value = Store.data.settings.bankId || "";
+
+    /* account card */
+    const acc = document.getElementById("account-body");
+    if (typeof Auth !== "undefined" && Auth.user) {
+      acc.innerHTML = `
+        <div class="account-row">
+          <div class="who">
+            <b>${escapeHtml(Auth.user)}</b>
+            <span>Signed in — changes sync to your server and follow you across devices.</span>
+          </div>
+          <button class="btn small" id="logout-btn">Sign out</button>
+        </div>`;
+      acc.querySelector("#logout-btn").addEventListener("click", () => {
+        if (confirm("Sign out? Your data stays safe on the server; this device's copy is cleared.")) Auth.logout();
+      });
+    } else if (typeof Auth !== "undefined" && Auth.serverMode) {
+      acc.innerHTML = `
+        <div class="account-row">
+          <div class="who">
+            <b>Device-only mode</b>
+            <span>Data lives only in this browser. Sign in to sync it across devices.</span>
+          </div>
+          <button class="btn small primary" id="signin-btn">Sign in</button>
+        </div>`;
+      acc.querySelector("#signin-btn").addEventListener("click", () => {
+        localStorage.removeItem("moneyflow.localmode");
+        location.reload();
+      });
+    } else {
+      acc.innerHTML = `
+        <div class="account-row">
+          <div class="who">
+            <b>Device-only mode</b>
+            <span>This copy of the app has no sync server, so data lives only in this browser (use Export/Import below to move it). To get accounts and cross-device sync, run the MoneyFlow server — see the README on GitHub.</span>
+          </div>
+        </div>`;
+    }
 
     /* recurring list */
     const recs = Store.data.recurring.filter(r => r.active);
@@ -800,4 +857,5 @@ function ord(n) {
   return s[(v - 20) % 10] || s[v] || s[0];
 }
 
-document.addEventListener("DOMContentLoaded", () => App.init());
+// App.init() is called by Auth.boot() (js/auth.js) once the
+// account/sync mode has been resolved.
