@@ -76,7 +76,44 @@
 
 * { box-sizing: border-box; }
 
-html { -webkit-text-size-adjust: 100%; }
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+/* ---------- motion ---------- */
+@keyframes view-in-right {
+  from { opacity: 0; transform: translateX(56px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes view-in-left {
+  from { opacity: 0; transform: translateX(-56px); }
+  to   { opacity: 1; transform: none; }
+}
+.view.enter-right { animation: view-in-right 0.3s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+.view.enter-left  { animation: view-in-left  0.3s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+
+@keyframes backdrop-in  { from { opacity: 0; } }
+@keyframes backdrop-out { to   { opacity: 0; } }
+@keyframes sheet-up     { from { transform: translateY(100%); } }
+@keyframes sheet-down   { to   { transform: translateY(100%); } }
+@keyframes pop-in       { from { opacity: 0; transform: translateY(20px) scale(0.98); } }
+@keyframes pop-out      { to   { opacity: 0; transform: translateY(20px) scale(0.98); } }
+@keyframes toast-in     { from { opacity: 0; transform: translate(-50%, 14px); } }
+@keyframes flash-ring {
+  0%   { box-shadow: 0 0 0 3px var(--accent); }
+  100% { box-shadow: 0 0 0 12px transparent; }
+}
+.flash { animation: flash-ring 1s ease-out 0.15s; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 
 body {
   margin: 0;
@@ -182,7 +219,13 @@ main {
 
 /* ---------- stat tiles ---------- */
 .tile-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.tile { padding: 12px 14px; }
+.tile {
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+.tile:hover { border-color: var(--baseline); }
+.tile:active { transform: scale(0.96); }
 .tile-label { font-size: 12px; color: var(--text-muted); }
 .tile-value { font-size: 19px; font-weight: 700; margin-top: 3px; }
 .tile-value.income { color: var(--delta-good); }
@@ -215,7 +258,11 @@ main {
   gap: 8px;
   font-size: 13px;
   color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.15s ease;
 }
+.legend li:hover { background: var(--grid); }
 .legend .val {
   margin-left: auto;
   color: var(--text-primary);
@@ -274,6 +321,8 @@ main {
   font-size: 14px;
 }
 .mini-list li:last-child { border-bottom: none; }
+#upcoming-list li { cursor: pointer; transition: background 0.15s ease; }
+#upcoming-list li:hover { background: var(--grid); }
 .mini-list .grow { flex: 1; min-width: 0; }
 .mini-list .sub { display: block; font-size: 12px; color: var(--text-muted); }
 .mini-list .amt { font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -317,7 +366,9 @@ main {
   cursor: pointer;
   box-shadow: var(--shadow);
 }
+.tx-item { transition: transform 0.15s ease, border-color 0.15s ease; }
 .tx-item:hover { border-color: var(--baseline); }
+.tx-item:active { transform: scale(0.98); }
 .tx-cat-dot {
   width: 34px; height: 34px;
   border-radius: 50%;
@@ -438,7 +489,9 @@ main {
   cursor: pointer;
   color: var(--text-primary);
 }
+.btn { transition: transform 0.12s ease, border-color 0.15s ease; }
 .btn:hover { border-color: var(--baseline); }
+.btn:active { transform: scale(0.95); }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .btn.primary:hover { filter: brightness(1.08); }
 .btn.danger { color: var(--status-critical); border-color: var(--status-critical); background: none; }
@@ -489,7 +542,11 @@ main {
   margin-top: -22px;
   flex: 0 0 auto;
 }
+.nav-add { transition: transform 0.15s ease; }
 .nav-add:hover { filter: brightness(1.08); }
+.nav-add:active { transform: scale(0.88); }
+.nav-btn { transition: color 0.2s ease, transform 0.15s ease; }
+.nav-btn:active { transform: scale(0.9); }
 
 /* ---------- modals ---------- */
 .modal-backdrop {
@@ -500,6 +557,7 @@ main {
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  animation: backdrop-in 0.2s ease both;
 }
 .modal {
   background: var(--surface-1);
@@ -509,10 +567,18 @@ main {
   padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
   max-height: 88dvh;
   overflow-y: auto;
+  animation: sheet-up 0.3s cubic-bezier(0.2, 0.7, 0.3, 1) both;
 }
+.modal-backdrop.closing { animation: backdrop-out 0.22s ease both; }
+.modal-backdrop.closing .modal { animation: sheet-down 0.22s cubic-bezier(0.6, 0, 0.8, 0.4) both; }
 @media (min-width: 560px) {
   .modal-backdrop { align-items: center; }
-  .modal { border-radius: 18px; }
+  .modal {
+    border-radius: 18px;
+    animation-name: pop-in;
+    animation-duration: 0.22s;
+  }
+  .modal-backdrop.closing .modal { animation-name: pop-out; }
 }
 .modal-head {
   display: flex;
@@ -563,6 +629,7 @@ main {
   line-height: 1.5;
 }
 .toast {
+  animation: toast-in 0.25s cubic-bezier(0.2, 0.7, 0.3, 1) both;
   position: fixed;
   left: 50%;
   bottom: calc(96px + env(safe-area-inset-bottom));

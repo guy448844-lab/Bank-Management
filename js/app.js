@@ -2,6 +2,8 @@
    MoneyFlow — application logic and rendering.
    ============================================================ */
 
+const VIEW_ORDER = ["dashboard", "transactions", "budgets", "funds", "settings"];
+
 const App = {
   view: "dashboard",
   month: null, // {y, m} month currently displayed
@@ -25,8 +27,18 @@ const App = {
       navigator.serviceWorker.register("sw.js").catch(() => {});
     }
     window.addEventListener("resize", () => {
-      if (this.view === "dashboard") this.renderCharts();
+      if (this.view === "dashboard") this.renderCharts(false);
     });
+
+    // stat tiles jump to the activity list, pre-filtered
+    const tileGo = (id, type) => document.getElementById(id).closest(".tile")
+      .addEventListener("click", () => {
+        document.getElementById("tx-filter-type").value = type;
+        this.showView("transactions");
+      });
+    tileGo("tile-income", "income");
+    tileGo("tile-expenses", "expense");
+    tileGo("tile-net", "");
   },
 
   /* ================= formatting ================= */
@@ -62,16 +74,25 @@ const App = {
   },
 
   showView(name) {
+    const fromIdx = VIEW_ORDER.indexOf(this.view);
+    const toIdx = VIEW_ORDER.indexOf(name);
+    const changed = name !== this.view;
     this.view = name;
     document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
-    document.getElementById(`view-${name}`).classList.remove("hidden");
+    const el = document.getElementById(`view-${name}`);
+    el.classList.remove("hidden", "enter-left", "enter-right");
+    if (changed) {
+      // slide in from the side the tab lives on
+      void el.offsetWidth; // restart the animation
+      el.classList.add(toIdx > fromIdx ? "enter-right" : "enter-left");
+    }
     document.querySelectorAll(".nav-btn").forEach(b =>
       b.classList.toggle("active", b.dataset.view === name));
     // month navigation only affects dashboard + transactions
     document.getElementById("month-nav").style.visibility =
       (name === "dashboard" || name === "transactions" || name === "budgets") ? "visible" : "hidden";
     this.renderAll();
-    window.scrollTo(0, 0);
+    window.scrollTo({ top: 0, behavior: "instant" });
   },
 
   bindMonthNav() {
@@ -147,14 +168,14 @@ const App = {
     const heroSub = document.getElementById("hero-sub");
     if (this.isCurrentMonth()) {
       heroLabel.textContent = "Left to spend this month";
-      heroValue.textContent = this.fmtMoney(left);
+      this.countUp(heroValue, left);
       heroValue.classList.toggle("negative", left < 0);
       heroSub.textContent = upEx > 0
         ? `after ${this.fmtMoney(upEx)} of fixed payments still to come`
         : "all fixed payments for this month are in";
     } else {
       heroLabel.textContent = `Net result · ${this.monthName(this.month.y, this.month.m)}`;
-      heroValue.textContent = this.fmtMoney(net);
+      this.countUp(heroValue, net);
       heroValue.classList.toggle("negative", net < 0);
       heroSub.textContent = net >= 0 ? "you ended this month in the green" : "you spent more than you earned";
     }
@@ -170,7 +191,31 @@ const App = {
     this.renderUpcoming(upcoming);
   },
 
-  renderCharts() {
+  // animate a money value counting up to its target
+  countUp(el, target) {
+    if (el._anim) cancelAnimationFrame(el._anim);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      el.textContent = this.fmtMoney(target);
+      return;
+    }
+    const dur = 600, start = performance.now();
+    const step = now => {
+      const t = Math.min(1, (now - start) / dur);
+      const eased = 1 - Math.pow(1 - t, 3);
+      el.textContent = this.fmtMoney(Math.round(target * eased));
+      if (t < 1) el._anim = requestAnimationFrame(step);
+    };
+    el._anim = requestAnimationFrame(step);
+  },
+
+  // meters are rendered at width 0 (data-w holds the target) then grown
+  growMeters(container) {
+    const spans = container.querySelectorAll(".meter > span[data-w]");
+    requestAnimationFrame(() => requestAnimationFrame(() =>
+      spans.forEach(s => { s.style.width = s.dataset.w; })));
+  },
+
+  renderCharts(animate = true) {
     const ym = this.ymStr();
 
     /* donut — top 7 categories + "Other" fold */
@@ -190,11 +235,20 @@ const App = {
     document.getElementById("donut-chart").parentElement.style.display = slices.length ? "" : "none";
     document.getElementById("donut-total").textContent = slices.length ? "" : "";
     if (slices.length) {
-      Charts.drawDonut(document.getElementById("donut-chart"), slices, "Total spent", this.fmtMoneyShort(total));
-      document.getElementById("donut-legend").innerHTML = slices.map(s => `
-        <li><i class="swatch" style="background:${s.color}"></i>
+      Charts.drawDonut(document.getElementById("donut-chart"), slices, "Total spent", this.fmtMoneyShort(total), animate);
+      const legend = document.getElementById("donut-legend");
+      legend.innerHTML = slices.map(s => `
+        <li data-cat="${escapeHtml(s.label)}" title="Show these transactions">
+        <i class="swatch" style="background:${s.color}"></i>
         <span>${escapeHtml(s.label)}</span>
         <span class="val">${this.fmtMoney(s.value)}</span></li>`).join("");
+      // tapping a legend row slides over to the activity list for that category
+      legend.querySelectorAll("li").forEach(li => li.addEventListener("click", () => {
+        if (li.dataset.cat === "Other") return;
+        document.getElementById("tx-search").value = li.dataset.cat;
+        document.getElementById("tx-filter-type").value = "expense";
+        this.showView("transactions");
+      }));
     }
     void donutCard;
 
@@ -205,7 +259,7 @@ const App = {
       const t = this.monthTotals(ymKey(d.getFullYear(), d.getMonth()));
       months.push({ label: this.monthName(d.getFullYear(), d.getMonth(), true), income: t.income, expense: t.expense });
     }
-    Charts.drawFlow(document.getElementById("flow-chart"), months);
+    Charts.drawFlow(document.getElementById("flow-chart"), months, animate);
   },
 
   renderInsights(ym, income, expense) {
@@ -261,7 +315,7 @@ const App = {
     document.getElementById("upcoming-empty").classList.toggle("hidden", upcoming.length > 0);
     const dim = daysInMonth(this.month.y, this.month.m);
     listEl.innerHTML = upcoming.map(r => `
-      <li>
+      <li title="Manage in Settings">
         <div class="grow">
           ${escapeHtml(r.note || r.category)}
           <span class="sub">${escapeHtml(r.category)} · on the ${Math.min(r.dayOfMonth, dim)}${ord(Math.min(r.dayOfMonth, dim))}</span>
@@ -270,6 +324,17 @@ const App = {
           ${r.type === "income" ? "+" : "−"}${this.fmtMoney(r.amount)}
         </span>
       </li>`).join("");
+    // tapping an upcoming payment slides to Settings and scrolls to the recurring list
+    listEl.querySelectorAll("li").forEach(li => li.addEventListener("click", () => {
+      this.showView("settings");
+      const card = document.getElementById("recurring-list").closest(".card");
+      setTimeout(() => {
+        card.scrollIntoView({ behavior: "smooth", block: "start" });
+        card.classList.remove("flash");
+        void card.offsetWidth;
+        card.classList.add("flash");
+      }, 330);
+    }));
   },
 
   /* ================= transactions ================= */
@@ -376,7 +441,7 @@ const App = {
     recEl.checked = false;
     recEl.disabled = !!tx; // recurrence is set when creating, managed in Settings
     recEl.closest(".switch-field").style.opacity = tx ? 0.45 : 1;
-    document.getElementById("tx-modal").classList.remove("hidden");
+    this.openModal("tx-modal");
     setTimeout(() => document.getElementById("tx-amount").focus(), 60);
   },
 
@@ -445,7 +510,7 @@ const App = {
         <input type="number" min="0" step="1" inputmode="decimal" data-cat="${escapeHtml(c)}"
           value="${Store.data.budgets[c] || ""}" placeholder="No budget">
       </label>`).join("");
-    document.getElementById("budget-modal").classList.remove("hidden");
+    this.openModal("budget-modal");
   },
 
   renderBudgets() {
@@ -470,10 +535,11 @@ const App = {
             <span class="name">${escapeHtml(cat)}</span>
             <span class="nums">${this.fmtMoney(used)} / ${this.fmtMoney(limit)}</span>
           </div>
-          <div class="meter"><span style="width:${pct}%;background:${barColor}"></span></div>
+          <div class="meter"><span style="width:0;background:${barColor}" data-w="${pct}%"></span></div>
           <div class="budget-status ${status}"><span aria-hidden="true">${icon}</span> ${msg} · ${pct}%</div>
         </div>`;
     }).join("");
+    this.growMeters(document.getElementById("budget-list"));
   },
 
   /* ================= funds ================= */
@@ -543,7 +609,7 @@ const App = {
     document.getElementById("fund-delete-btn").classList.toggle("hidden", !f);
     document.getElementById("fund-name").value = f ? f.name : "";
     document.getElementById("fund-goal").value = f && f.goal ? f.goal : "";
-    document.getElementById("fund-modal").classList.remove("hidden");
+    this.openModal("fund-modal");
   },
 
   openFundEntryModal(fundId, sign) {
@@ -552,7 +618,7 @@ const App = {
     document.getElementById("fund-entry-title").textContent = sign > 0 ? "Deposit" : "Withdraw";
     document.getElementById("fund-entry-amount").value = "";
     document.getElementById("fund-entry-note").value = "";
-    document.getElementById("fund-entry-modal").classList.remove("hidden");
+    this.openModal("fund-entry-modal");
     setTimeout(() => document.getElementById("fund-entry-amount").focus(), 60);
   },
 
@@ -571,7 +637,7 @@ const App = {
           </div>
           ${pct !== null ? `
             <div class="fund-goal-note">${pct}% of ${this.fmtMoney(f.goal)} goal</div>
-            <div class="meter"><span style="width:${pct}%"></span></div>` : ""}
+            <div class="meter"><span style="width:0" data-w="${pct}%"></span></div>` : ""}
           <div class="fund-actions">
             <button class="btn small" data-act="deposit">Deposit</button>
             <button class="btn small" data-act="withdraw">Withdraw</button>
@@ -589,6 +655,7 @@ const App = {
         if (btn.dataset.act === "edit") this.openFundModal(id);
       });
     });
+    this.growMeters(wrap);
   },
 
   /* ================= settings ================= */
@@ -704,8 +771,17 @@ const App = {
   },
 
   /* ================= misc ================= */
+  openModal(id) {
+    const m = document.getElementById(id);
+    m.classList.remove("closing", "hidden");
+  },
+
   closeModals() {
-    document.querySelectorAll(".modal-backdrop").forEach(m => m.classList.add("hidden"));
+    // play the slide-down/fade-out before actually hiding
+    document.querySelectorAll(".modal-backdrop:not(.hidden)").forEach(m => {
+      m.classList.add("closing");
+      setTimeout(() => m.classList.add("hidden"), 230);
+    });
     this.editingTxId = null;
   },
 
