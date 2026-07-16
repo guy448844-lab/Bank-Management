@@ -736,6 +736,16 @@ const App = {
         this.toast("All data erased");
       }
     });
+
+    document.getElementById("reset-money-btn").addEventListener("click", () => {
+      if (confirm("Reset all balances? This deletes every transaction and sets all funds to zero. Your categories, budgets, funds and recurring payments are kept. This cannot be undone — consider exporting a backup first.")) {
+        Store.resetBalances();
+        const n = new Date();
+        this.month = { y: n.getFullYear(), m: n.getMonth() };
+        this.renderAll();
+        this.toast("Balances reset to zero");
+      }
+    });
   },
 
   renderSettings() {

@@ -133,6 +133,24 @@ const Store = {
     this.save();
   },
 
+  /* ---- reset the money, keep the setup: clears all transactions and
+     zeroes every fund, while preserving settings, categories, budgets,
+     fund names/goals and recurring payment templates ---- */
+  resetBalances() {
+    this.data.transactions = [];
+    this.data.funds.forEach(f => { f.entries = []; });
+    // keep recurring templates, but roll them forward so they resume next
+    // month — this guarantees the balance is zero now and nothing already
+    // due this month gets re-added on the next load
+    const now = new Date();
+    const curYm = ymKey(now.getFullYear(), now.getMonth());
+    const nextMonth = nextYm(curYm);
+    this.data.recurring.forEach(r => {
+      if (r.active) { r.startMonth = nextMonth; r.lastApplied = curYm; }
+    });
+    this.save();
+  },
+
   /* ---- demo data so a new user can explore the app ---- */
   loadDemo() {
     const d = DEFAULT_DATA();

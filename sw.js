@@ -1,7 +1,7 @@
 /* MoneyFlow service worker — cache-first so the app opens instantly
    and works offline. Bump CACHE_VERSION when shipping changes. */
 
-const CACHE_VERSION = "moneyflow-v4";
+const CACHE_VERSION = "moneyflow-v5";
 const ASSETS = [
   ".",
   "index.html",
