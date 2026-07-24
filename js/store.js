@@ -41,8 +41,10 @@ const Store = {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   },
 
-  /* ---- recurring: create the concrete transaction for every month
-     from the template's start month up to the current month ---- */
+  /* ---- recurring: create the concrete transaction for every due month
+     from the template's start month up to the current month. Monthly
+     templates are due every month; yearly templates only in their
+     anchor month (r.month, 1-12). ---- */
   materializeRecurring() {
     const now = new Date();
     const curYm = ymKey(now.getFullYear(), now.getMonth());
@@ -50,9 +52,17 @@ const Store = {
 
     for (const r of this.data.recurring) {
       if (!r.active) continue;
+      const yearly = r.frequency === "yearly";
       let ym = r.lastApplied ? nextYm(r.lastApplied) : r.startMonth;
       while (ym && ym <= curYm) {
         const [y, m] = ym.split("-").map(Number);
+        // yearly templates skip every month except their anchor month
+        if (yearly && m !== r.month) {
+          r.lastApplied = ym;
+          changed = true;
+          ym = nextYm(ym);
+          continue;
+        }
         const day = Math.min(r.dayOfMonth, daysInMonth(y, m - 1));
         const date = `${ym}-${String(day).padStart(2, "0")}`;
         // only materialize once the day has arrived

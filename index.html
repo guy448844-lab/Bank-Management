@@ -250,9 +250,13 @@
       <span>Note <em>(optional)</em></span>
       <input type="text" id="tx-note" maxlength="80" placeholder="e.g. dinner with friends">
     </label>
-    <label class="switch-field">
-      <input type="checkbox" id="tx-recurring">
-      <span>Repeats monthly (fixed payment / salary)</span>
+    <label class="field" id="tx-repeat-field">
+      <span>Repeat <em>(fixed payments, salary, insurance…)</em></span>
+      <select id="tx-repeat">
+        <option value="none">Doesn't repeat</option>
+        <option value="monthly">Every month</option>
+        <option value="yearly">Every year</option>
+      </select>
     </label>
     <div class="btn-row">
       <button type="button" class="btn danger hidden" id="tx-delete-btn">Delete</button>
