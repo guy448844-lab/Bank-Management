@@ -62,6 +62,12 @@ const App = {
     return new Date(y, m, 1).toLocaleDateString("en-US", { month: short ? "short" : "long", year: short ? undefined : "numeric" });
   },
 
+  // "March 12" from a 1-12 month number and day
+  monthDayLabel(month, day) {
+    const name = new Date(2000, (month || 1) - 1, 1).toLocaleDateString("en-US", { month: "long" });
+    return `${name} ${day}`;
+  },
+
   isCurrentMonth() {
     const n = new Date();
     return this.month.y === n.getFullYear() && this.month.m === n.getMonth();
@@ -135,8 +141,11 @@ const App = {
     if (!this.isCurrentMonth()) return [];
     const today = new Date().getDate();
     const dim = daysInMonth(this.month.y, this.month.m);
+    const curMonth = this.month.m + 1; // 1-12
     return Store.data.recurring
-      .filter(r => r.active && Math.min(r.dayOfMonth, dim) > today && r.startMonth <= this.ymStr())
+      .filter(r => r.active && Math.min(r.dayOfMonth, dim) > today && r.startMonth <= this.ymStr()
+        // yearly templates are only "upcoming" during their anchor month
+        && (r.frequency !== "yearly" || r.month === curMonth))
       .sort((a, b) => a.dayOfMonth - b.dayOfMonth);
   },
 
@@ -446,10 +455,10 @@ const App = {
     document.getElementById("tx-amount").value = tx ? tx.amount : "";
     document.getElementById("tx-date").value = tx ? tx.date : todayStr();
     document.getElementById("tx-note").value = tx ? (tx.note || "") : "";
-    const recEl = document.getElementById("tx-recurring");
-    recEl.checked = false;
-    recEl.disabled = !!tx; // recurrence is set when creating, managed in Settings
-    recEl.closest(".switch-field").style.opacity = tx ? 0.45 : 1;
+    const repEl = document.getElementById("tx-repeat");
+    repEl.value = "none";
+    repEl.disabled = !!tx; // recurrence is set when creating, managed in Settings
+    document.getElementById("tx-repeat-field").style.opacity = tx ? 0.45 : 1;
     this.openModal("tx-modal");
     setTimeout(() => document.getElementById("tx-amount").focus(), 60);
   },
@@ -466,13 +475,14 @@ const App = {
       Store.updateTransaction(this.editingTxId, { type, amount, category, date, note });
       this.toast("Transaction updated");
     } else {
-      const recurring = document.getElementById("tx-recurring").checked;
+      const repeat = document.getElementById("tx-repeat").value; // none | monthly | yearly
       let recurringId;
-      if (recurring) {
-        const day = Number(date.slice(8));
+      if (repeat !== "none") {
         const rec = Store.addRecurring({
           type, amount, category, note,
-          dayOfMonth: day,
+          frequency: repeat,
+          dayOfMonth: Number(date.slice(8)),
+          month: Number(date.slice(5, 7)), // anchor month (used by yearly)
           startMonth: date.slice(0, 7),
           lastApplied: date.slice(0, 7),
           active: true
@@ -480,7 +490,8 @@ const App = {
         recurringId = rec.id;
       }
       Store.addTransaction({ type, amount, category, date, note, recurringId });
-      this.toast(recurring ? "Saved — will repeat monthly" : "Transaction saved");
+      this.toast(repeat === "monthly" ? "Saved — will repeat monthly"
+        : repeat === "yearly" ? "Saved — will repeat every year" : "Transaction saved");
     }
     this.closeModals();
     // jump the view to the month of the saved transaction
@@ -760,7 +771,9 @@ const App = {
       <li data-id="${r.id}">
         <div class="grow">
           ${escapeHtml(r.note || r.category)}
-          <span class="sub">${escapeHtml(r.category)} · every month on the ${r.dayOfMonth}${ord(r.dayOfMonth)}</span>
+          <span class="sub">${escapeHtml(r.category)} · ${r.frequency === "yearly"
+            ? `every year on ${this.monthDayLabel(r.month, r.dayOfMonth)}`
+            : `every month on the ${r.dayOfMonth}${ord(r.dayOfMonth)}`}</span>
         </div>
         <span class="amt" style="color:${r.type === "income" ? "var(--delta-good)" : "inherit"}">
           ${r.type === "income" ? "+" : "−"}${this.fmtMoney(r.amount)}
